@@ -6,9 +6,9 @@ resource "aws_cloudtrail" "master_cloudtrail" {
   s3_bucket_name                = "${aws_s3_bucket.master-cloudtrail-bucket.id}"
   s3_key_prefix                 = "cloudtrail"
   include_global_service_events = true
-  enable_log_file_validation    = true
-  enable_logging                = true
-  is_multi_region_trail         = true
+  enable_log_file_validation    = false
+  enable_logging                = false
+  is_multi_region_trail         = false
 
   tags {
     name = "Master Cloudtrail"
