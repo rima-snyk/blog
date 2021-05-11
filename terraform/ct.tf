@@ -1,25 +1,39 @@
-module "cloudtrail" {
-  source = "github.com/azavea/terraform-aws-cloudtrail?ref=0.1.0"
-
-  region           = "us-east-1"
-  create_s3_bucket = true
-  s3_bucket_name   = "mysite-logs"
-  s3_key_prefix    = "cloudtrail"
-
-  enable_s3_bucket_expiration  = false
-  s3_bucket_days_to_expiration = 90
-
-  enable_s3_bucket_transition        = true
-  s3_bucket_days_to_transition       = 90
-  s3_bucket_transition_storage_class = "ONEZONE_IA"
-
-  enable_logging             = true
-  enable_log_file_validation = false
-
+/**
+ * CloudTrail resource for monitoring all services
+ */
+resource "aws_cloudtrail" "master_cloudtrail" {
+  name                          = "master-cloudtrail-${var.env}"
+  s3_bucket_name                = "${aws_s3_bucket.master-cloudtrail-bucket.id}"
+  s3_key_prefix                 = "cloudtrail"
   include_global_service_events = true
-  is_multi_region_trail         = false
-  is_organization_trail         = false
+  enable_log_file_validation    = true
+  enable_logging                = true
+  is_multi_region_trail         = true
 
-  project     = "My Site"
-  environment = "Production"
+  tags {
+    name = "Master Cloudtrail"
+  }
+}
+
+/*
+ * Glue crawler for detecting the schema from the CloudTrail logs
+ */
+resource "aws_glue_crawler" "example" {
+  database_name = "${aws_glue_catalog_database.cloudtrail_glue_crawler_db.name}"
+  name          = "cloudtrail-log-crawler-${var.env}"
+  role          = "${aws_iam_role.glue-crawler-read-logs-role.arn}"
+
+  s3_target {
+    path = "s3://${aws_s3_bucket.master-cloudtrail-bucket.bucket}"
+  }
+}
+
+/*
+ * Example query for investigating CloudTrail logs
+ */
+resource "aws_athena_named_query" "example-query" {
+  name        = "athena-example-query-${var.env}"
+  database    = "${aws_glue_catalog_database.cloudtrail_glue_crawler_db.name}"
+  query       = "SELECT COUNT(DISTINCT awsaccountid) FROM cloudtrail_digest;"
+  description = "A simple query example to count the number of distinct AWS accounts in the CloudTrail logs"
 }
